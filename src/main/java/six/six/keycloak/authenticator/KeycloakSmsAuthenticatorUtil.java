@@ -139,9 +139,15 @@ public class KeycloakSmsAuthenticatorUtil {
     public static String getMessage(AuthenticationFlowContext context, String key){
         String result=null;
         try {
-            ThemeProvider themeProvider = context.getSession().getProvider(ThemeProvider.class, "extending");
-            Theme currentTheme = themeProvider.getTheme(context.getRealm().getLoginTheme(), Theme.Type.LOGIN);
+            //ThemeProvider themeProvider = context.getSession().getProvider(ThemeProvider.class,"extending");
             Locale locale = context.getSession().getContext().resolveLocale(context.getUser());
+            System.out.println(key);
+            System.out.println(locale);
+            //System.out.println(themeProvider);
+            System.out.println(context.getRealm().getName());
+            System.out.println(context.getRealm().getLoginTheme());
+            Theme currentTheme = context.getSession().theme().getTheme(context.getRealm().getLoginTheme(), Theme.Type.LOGIN);
+            System.out.println(currentTheme);
             result = currentTheme.getMessages(locale).getProperty(key);
         }catch (IOException e){
             logger.warn(key + "not found in messages");

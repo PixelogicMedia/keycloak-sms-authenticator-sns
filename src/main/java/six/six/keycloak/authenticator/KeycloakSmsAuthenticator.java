@@ -57,15 +57,29 @@ public class KeycloakSmsAuthenticator implements Authenticator {
     @Override
     public void authenticate(AuthenticationFlowContext context) {
         logger.debug("authenticate called ... context = " + context);
+        System.out.println("authenticate called");
+        System.out.println(context.getExecution().getRequirement());
         UserModel user = context.getUser();
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 
         boolean onlyForVerification=KeycloakSmsAuthenticatorUtil.getConfigBoolean(config, KeycloakSmsConstants.MOBILE_VERIFICATION_ENABLED);
 
+        System.out.println("onlyForVerification");
+        System.out.println(onlyForVerification);
+        System.out.println(context.getUser().getRequiredActions().size());
+        System.out.println(user.getEmail());
+        for (String entry:context.getUser().getRequiredActions()) {
+            System.out.println(entry);;
+        }
+
+
         String mobileNumber =getMobileNumber(user);
         String mobileNumberVerified = getMobileNumberVerified(user);
 
-        if (onlyForVerification==false || isOnlyForVerificationMode(onlyForVerification, mobileNumber,mobileNumberVerified)){
+        if ( (context.getExecution().getRequirement() == AuthenticationExecutionModel.Requirement.REQUIRED ||
+                context.getExecution().getRequirement() == AuthenticationExecutionModel.Requirement.CONDITIONAL
+                        && user.getEmail() != null)
+                &&(!onlyForVerification || isOnlyForVerificationMode(onlyForVerification, mobileNumber,mobileNumberVerified))){
             if (mobileNumber != null) {
                 // The mobile number is configured --> send an SMS
                 long nrOfDigits = KeycloakSmsAuthenticatorUtil.getConfigLong(config, KeycloakSmsConstants.CONF_PRP_SMS_CODE_LENGTH, 8L);
@@ -80,6 +94,7 @@ public class KeycloakSmsAuthenticator implements Authenticator {
 
                 storeSMSCode(context, code, new Date().getTime() + (ttl * 1000)); // s --> ms
                 if (KeycloakSmsAuthenticatorUtil.sendSmsCode(mobileNumber, code, context)) {
+                    System.out.println(code);
                     Response challenge = context.form().createForm("sms-validation.ftl");
                     context.challenge(challenge);
                 } else {
@@ -114,6 +129,9 @@ public class KeycloakSmsAuthenticator implements Authenticator {
         logger.debug("action called ... context = " + context);
         CODE_STATUS status = validateCode(context);
         Response challenge = null;
+        System.out.println("action called");
+        System.out.println(context.getExecution().getRequirement());
+
         switch (status) {
             case EXPIRED:
                 challenge = context.form()
@@ -123,7 +141,7 @@ public class KeycloakSmsAuthenticator implements Authenticator {
                 break;
 
             case INVALID:
-                if (context.getExecution().getRequirement() == AuthenticationExecutionModel.Requirement.OPTIONAL ||
+                if (context.getExecution().getRequirement() == AuthenticationExecutionModel.Requirement.CONDITIONAL ||
                         context.getExecution().getRequirement() == AuthenticationExecutionModel.Requirement.ALTERNATIVE) {
                     logger.debug("Calling context.attempted()");
                     context.attempted();
